@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Swing Scanner Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --card2: #22263a;
+    --border: #2e3248; --accent: #6c63ff; --accent2: #00d2a0;
+    --red: #ff4d6d; --yellow: #ffc93c; --green: #00d2a0;
+    --text: #e2e8f0; --muted: #8892a4; --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* ── NAV ── */
+  nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; }
+  .nav-brand span.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent2); display: inline-block; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .market-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+  .market-bull { background: rgba(0,210,160,0.15); color: var(--green); border: 1px solid rgba(0,210,160,0.3); }
+  .market-bear { background: rgba(255,77,109,0.15); color: var(--red); border: 1px solid rgba(255,77,109,0.3); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+  .grid-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 16px; margin-bottom: 24px; }
+
+  /* ── STAT CARDS ── */
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+  .stat-sub { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .c-green { color: var(--green); } .c-yellow { color: var(--yellow); } .c-red { color: var(--red); } .c-accent { color: var(--accent); }
+
+  /* ── CONTROLS ── */
+  .controls { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .controls label { font-size: 0.82rem; color: var(--muted); }
+  select, input[type=number] { background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; outline: none; }
+  select:focus, input:focus { border-color: var(--accent); }
+  .btn { padding: 9px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all .2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #7b74ff; }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { background: #00b88a; }
+  .spacer { flex: 1; }
+  .last-run-info { font-size: 0.78rem; color: var(--muted); }
+
+  /* ── PROGRESS ── */
+  .progress-wrap { margin-bottom: 24px; display: none; }
+  .progress-wrap.show { display: block; }
+  .progress-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 6px; background: var(--card2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width .4s ease; width: 0%; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 18px; cursor: pointer; font-size: 0.85rem; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .2s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab:hover:not(.active) { color: var(--text); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── FILTER BAR ── */
+  .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+  .filter-bar input[type=text] { background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 12px; font-size: 0.83rem; outline: none; width: 200px; }
+  .grade-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.78rem; cursor: pointer; transition: all .2s; }
+  .grade-btn.active { color: #fff; border-color: transparent; }
+  .grade-btn.g-ap.active  { background: var(--green); }
+  .grade-btn.g-a.active   { background: #3ecf8e; }
+  .grade-btn.g-bp.active  { background: var(--yellow); color: #000; }
+  .grade-btn.g-b.active   { background: #ff9f43; }
+  .grade-btn.g-all.active { background: var(--accent); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  thead th { background: var(--card2); padding: 11px 14px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); white-space: nowrap; cursor: pointer; user-select: none; }
+  thead th:hover { color: var(--text); }
+  thead th .sort-icon { opacity: .4; font-size: 0.7rem; margin-left: 4px; }
+  tbody tr { border-top: 1px solid var(--border); transition: background .15s; }
+  tbody tr:hover { background: var(--card2); }
+  td { padding: 11px 14px; white-space: nowrap; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
+  .badge-ap  { background: rgba(0,210,160,.18); color: var(--green); }
+  .badge-a   { background: rgba(62,207,142,.18); color: #3ecf8e; }
+  .badge-bp  { background: rgba(255,201,60,.18); color: var(--yellow); }
+  .badge-b   { background: rgba(255,159,67,.18); color: #ff9f43; }
+  .badge-c   { background: rgba(255,77,109,.15); color: var(--red); }
+  .score-bar { display: flex; align-items: center; gap: 6px; }
+  .score-dots { display: flex; gap: 2px; }
+  .score-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+  .score-dot.on { background: var(--accent2); }
+  .failed-tag { font-size: 0.7rem; color: var(--red); opacity: .75; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  .pass-tag { font-size: 0.7rem; color: var(--green); }
+  td.price { font-weight: 600; }
+  td.up { color: var(--green); font-weight: 600; }
+  td.down { color: var(--red); font-weight: 600; }
+
+  /* ── DETAIL MODAL ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: min(680px, 96vw); max-height: 90vh; overflow-y: auto; padding: 28px; }
+  .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .modal-title { font-size: 1.4rem; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+  .modal-close:hover { color: var(--text); }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .check-item { background: var(--card2); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+  .check-item .icon { font-size: 1rem; }
+  .trade-plan { background: var(--card2); border-radius: 10px; padding: 16px; display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+  .tp-item label { font-size: 0.7rem; text-transform: uppercase; color: var(--muted); }
+  .tp-item .val { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+
+  /* ── HISTORY ── */
+  .history-list { display: flex; flex-direction: column; gap: 10px; }
+  .history-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: border-color .2s; }
+  .history-item:hover { border-color: var(--accent); }
+  .history-date { font-weight: 600; font-size: 0.9rem; min-width: 100px; }
+  .history-stats { flex: 1; display: flex; gap: 20px; font-size: 0.82rem; color: var(--muted); }
+  .history-stats strong { color: var(--text); }
+
+  /* ── EMPTY STATE ── */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty p { font-size: 0.9rem; }
+
+  /* ── TOAST ── */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 0.85rem; z-index: 999; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 600px) {
+    .grid-top { grid-template-columns: repeat(2,1fr); }
+    .check-grid { grid-template-columns: 1fr; }
+    .trade-plan { grid-template-columns: 1fr 1fr; }
+    nav { padding: 0 14px; }
+    .controls { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <span class="dot"></span>
+    📈 Swing Scanner
+  </div>
+  <div class="nav-right">
+    <span id="marketBadge" class="market-badge market-bull">Nifty ✅ Bull</span>
+    <span id="navTime" style="font-size:.78rem;color:var(--muted)"></span>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="container">
+
+  <!-- STAT CARDS -->
+  <div class="grid-top">
+    <div class="stat-card">
+      <div class="stat-label">Today's Candidates</div>
+      <div class="stat-value c-green" id="statCandidates">—</div>
+      <div class="stat-sub" id="statDate">No scan yet</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">A+ Perfect</div>
+      <div class="stat-value c-accent" id="statAP">—</div>
+      <div class="stat-sub">Score 10/10</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">A Grade</div>
+      <div class="stat-value c-green" id="statA">—</div>
+      <div class="stat-sub">Score 9/10</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">B+ Grade</div>
+      <div class="stat-value c-yellow" id="statBP">—</div>
+      <div class="stat-sub">Score 8/10</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Stocks Scanned</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">From your Excel</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Next Auto-Scan</div>
+      <div class="stat-value" style="font-size:1.1rem" id="statNext">4:15 PM</div>
+      <div class="stat-sub">Mon–Fri IST</div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <label>Min Score</label>
+    <select id="minScore">
+      <option value="10">10 / 10 — Perfect only</option>
+      <option value="9">9+ / 10 — Excellent</option>
+      <option value="8" selected>8+ / 10 — Strong (recommended)</option>
+      <option value="7">7+ / 10 — Relaxed</option>
+    </select>
+    <button class="btn btn-primary" id="btnScan" onclick="startScan()">▶ Run Scan Now</button>
+    <div class="spacer"></div>
+    <span class="last-run-info" id="lastRunInfo">—</span>
+    <button class="btn btn-outline" onclick="loadResults()">↻ Refresh</button>
+    <button class="btn btn-green" id="btnExport" onclick="exportExcel()" disabled>⬇ Export Excel</button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <span id="progressLabel">Scanning...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('results')">Results</div>
+    <div class="tab" onclick="switchTab('history')">History</div>
+    <div class="tab" onclick="switchTab('setup')">Setup Guide</div>
+  </div>
+
+  <!-- TAB: RESULTS -->
+  <div class="tab-content active" id="tab-results">
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="🔍 Search stock..." oninput="applyFilters()">
+      <button class="grade-btn g-all active" data-grade="all"   onclick="filterGrade(this,'all')">All</button>
+      <button class="grade-btn g-ap"         data-grade="A+"    onclick="filterGrade(this,'A+')">A+ Perfect</button>
+      <button class="grade-btn g-a"          data-grade="A"     onclick="filterGrade(this,'A')">A Excellent</button>
+      <button class="grade-btn g-bp"         data-grade="B+"    onclick="filterGrade(this,'B+')">B+ Strong</button>
+      <button class="grade-btn g-b"          data-grade="B"     onclick="filterGrade(this,'B')">B Good</button>
+      <span style="font-size:.78rem;color:var(--muted);margin-left:auto" id="rowCount"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th onclick="sortTable('stock')">Stock <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('grade')">Grade <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('score')">Score <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('price')">Price ₹ <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('rsi')">RSI <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('atr_pct')">ATR % <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('rel_vol')">Rel Vol <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('stop')">Stop Loss <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('target')">Target <span class="sort-icon">↕</span></th>
+            <th>Checks</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody">
+          <tr><td colspan="10"><div class="empty"><div class="icon">🔍</div><p>Click "Run Scan Now" to start</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB: HISTORY -->
+  <div class="tab-content" id="tab-history">
+    <div class="history-list" id="historyList">
+      <div class="empty"><div class="icon">📅</div><p>No history yet</p></div>
+    </div>
+  </div>
+
+  <!-- TAB: SETUP GUIDE -->
+  <div class="tab-content" id="tab-setup">
+    <div style="max-width:720px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;line-height:1.75">
+        <h2 style="margin-bottom:20px;font-size:1.2rem">⚙️ Setup Guide</h2>
+
+        <h3 style="color:var(--accent);margin-bottom:8px">1. Install dependencies</h3>
+        <pre style="background:var(--card2);border-radius:8px;padding:14px;font-size:.82rem;overflow-x:auto;margin-bottom:20px">pip install flask flask-cors yfinance pandas openpyxl apscheduler numpy</pre>
+
+        <h3 style="color:var(--accent);margin-bottom:8px">2. Prepare your Excel file</h3>
+        <p style="font-size:.88rem;color:var(--muted);margin-bottom:20px">Your Excel file (e.g. <code>NSEV2.xlsx</code>) must have a column named <strong>Symbol</strong> containing NSE ticker symbols without the <code>.NS</code> suffix — e.g. <code>RELIANCE</code>, <code>INFY</code>, <code>TCS</code>.</p>
+
+        <h3 style="color:var(--accent);margin-bottom:8px">3. Run the app</h3>
+        <pre style="background:var(--card2);border-radius:8px;padding:14px;font-size:.82rem;overflow-x:auto;margin-bottom:20px">python swing_scanner_app.py --excel NSEV2.xlsx
+
+# Custom port
+python swing_scanner_app.py --excel NSEV2.xlsx --port 8080
+
+# Disable auto-scheduler
+python swing_scanner_app.py --excel NSEV2.xlsx --no-sched</pre>
+
+        <h3 style="color:var(--accent);margin-bottom:8px">4. Auto-schedule</h3>
+        <p style="font-size:.88rem;color:var(--muted);margin-bottom:20px">The backend automatically runs a scan every <strong>weekday at 4:15 PM IST</strong> (after NSE close). Results are saved in the <code>results/</code> folder as JSON + Excel. You can also click <em>Run Scan Now</em> any time.</p>
+
+        <h3 style="color:var(--accent);margin-bottom:8px">5. Scoring system</h3>
+        <div style="font-size:.85rem">
+          <table style="width:100%;border-collapse:collapse">
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="padding:8px;text-align:left;color:var(--muted);font-size:.75rem">Check</th>
+              <th style="padding:8px;text-align:left;color:var(--muted);font-size:.75rem">What It Tests</th>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">Bull Trend</td><td style="padding:8px;color:var(--muted)">Price > EMA20 > EMA50 > EMA200</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">Higher Highs</td><td style="padding:8px;color:var(--muted)">Stock making HH over last 20 sessions</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">Pullback Entry</td><td style="padding:8px;color:var(--muted)">Price within 3% of EMA20 or EMA50</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">Volume Pattern</td><td style="padding:8px;color:var(--muted)">Low vol consolidation → today expanding</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">RSI Sweet Spot</td><td style="padding:8px;color:var(--muted)">RSI 45–68 (momentum, not overbought)</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">ATR Ok</td><td style="padding:8px;color:var(--muted)">ATR ≥ 1.5% of price (tradeable)</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">Not At Resistance</td><td style="padding:8px;color:var(--muted)">Below top 8% of 52-week range</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">R:R ≥ 1:3</td><td style="padding:8px;color:var(--muted)">ATR-based stop gives 3× reward</td></tr>
+            <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px">EMA200 Buffer</td><td style="padding:8px;color:var(--muted)">Price > EMA200 by ≥ 2%</td></tr>
+            <tr><td style="padding:8px">Green Candle</td><td style="padding:8px;color:var(--muted)">Today's close > prior close</td></tr>
+          </table>
+        </div>
+
+        <div style="background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.3);border-radius:10px;padding:16px;margin-top:24px;font-size:.85rem">
+          <strong>💡 Best results tip:</strong> Only act on <span style="color:var(--green)">A+</span> and <span style="color:#3ecf8e">A</span> grades. Always respect the stop loss. Run the scan after 3:30 PM IST on weekdays for confirmed EOD signals.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">—</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px" id="modalSub">—</div>
+      </div>
+      <button class="modal-close" onclick="hideModal()">✕</button>
+    </div>
+    <div style="margin-bottom:16px;font-size:.82rem;color:var(--muted)">Checks Passed</div>
+    <div class="check-grid" id="checkGrid"></div>
+    <div style="margin:20px 0 10px;font-size:.82rem;color:var(--muted)">Trade Plan</div>
+    <div class="trade-plan" id="tradePlan"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ── State ──
+let allResults  = [];
+let sortKey     = "score";
+let sortAsc     = false;
+let gradeFilter = "all";
+let pollTimer   = null;
+let currentFile = null;
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById("navTime").textContent =
+    now.toLocaleTimeString("en-IN", {timeZone:"Asia/Kolkata", hour:"2-digit", minute:"2-digit"}) + " IST";
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ── Tabs ──
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach((t,i) => {
+    const tabs = ["results","history","setup"];
+    t.classList.toggle("active", tabs[i] === name);
+  });
+  document.querySelectorAll(".tab-content").forEach(c => {
+    c.classList.toggle("active", c.id === "tab-"+name);
+  });
+  if (name === "history") loadHistory();
+}
+
+// ── Toast ──
+function toast(msg, dur=3000) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), dur);
+}
+
+// ── Grade badge ──
+function gradeBadge(g) {
+  const cls = { "A+":"badge-ap","A":"badge-a","B+":"badge-bp","B":"badge-b","C":"badge-c" };
+  return `<span class="badge ${cls[g]||'badge-c'}">${g}</span>`;
+}
+
+// ── Score dots ──
+function scoreDots(n) {
+  let dots = '<div class="score-dots">';
+  for (let i=0;i<10;i++) dots += `<div class="score-dot ${i<n?'on':''}"></div>`;
+  return dots + '</div>';
+}
+
+// ── Sort ──
+let sortDir = {};
+function sortTable(key) {
+  if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = key === "stock"; }
+  renderTable();
+}
+
+// ── Filter grade ──
+function filterGrade(el, grade) {
+  document.querySelectorAll(".grade-btn").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  gradeFilter = grade;
+  applyFilters();
+}
+
+// ── Apply filters ──
+function applyFilters() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  let filtered = allResults.filter(r => {
+    const matchGrade = gradeFilter === "all" || r.grade === gradeFilter;
+    const matchSearch = !q || r.stock.toLowerCase().includes(q);
+    return matchGrade && matchSearch;
+  });
+  filtered.sort((a,b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (typeof av === "string") av = av.toLowerCase();
+    if (typeof bv === "string") bv = bv.toLowerCase();
+    return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+  renderRows(filtered);
+}
+
+// ── Render table ──
+function renderTable() { applyFilters(); }
+
+function renderRows(rows) {
+  const tbody = document.getElementById("resultsBody");
+  document.getElementById("rowCount").textContent = `${rows.length} stock${rows.length!==1?'s':''}`;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="icon">😶</div><p>No stocks match current filter</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r,i) => {
+    const failedText = r.failed && r.failed.length
+      ? `<div class="failed-tag" title="${r.failed.join(', ')}">✗ ${r.failed.slice(0,2).join(', ')}${r.failed.length>2?' +'+( r.failed.length-2):''}</div>`
+      : `<div class="pass-tag">✅ All passed</div>`;
+
+    return `<tr onclick="showDetail(${i})" style="cursor:pointer">
+      <td><strong>${r.stock}</strong></td>
+      <td>${gradeBadge(r.grade)}</td>
+      <td><div class="score-bar">${scoreDots(r.score)}<span style="font-size:.75rem;color:var(--muted)">${r.score}/10</span></div></td>
+      <td class="price">₹${r.price.toLocaleString("en-IN")}</td>
+      <td class="${r.rsi>60?'c-yellow':r.rsi>50?'c-green':'c-accent'}">${r.rsi}</td>
+      <td>${r.atr_pct}%</td>
+      <td class="${r.rel_vol>=2?'c-green':''}">${r.rel_vol}×</td>
+      <td class="down">₹${r.stop.toLocaleString("en-IN")}</td>
+      <td class="up">₹${r.target.toLocaleString("en-IN")}</td>
+      <td>${failedText}</td>
+    </tr>`;
+  }).join("");
+
+  // store filtered rows for modal reference
+  window._filteredRows = rows;
+}
+
+// ── Load results ──
+async function loadResults() {
+  try {
+    const res  = await fetch("/api/results");
+    const data = await res.json();
+    if (data.results && data.results.length) {
+      allResults = data.results;
+      currentFile = null;
+      updateStats(data);
+      applyFilters();
+      document.getElementById("btnExport").disabled = false;
+    } else {
+      document.getElementById("resultsBody").innerHTML =
+        `<tr><td colspan="10"><div class="empty"><div class="icon">🔍</div><p>${data.message||'No results'}</p></div></td></tr>`;
+    }
+  } catch(e) {
+    // backend may not be running; show demo message
+    console.warn("Backend not reachable:", e.message);
+  }
+}
+
+function updateStats(data) {
+  const r = data.results || [];
+  document.getElementById("statCandidates").textContent = r.length;
+  document.getElementById("statAP").textContent  = r.filter(x=>x.grade==="A+").length;
+  document.getElementById("statA").textContent   = r.filter(x=>x.grade==="A").length;
+  document.getElementById("statBP").textContent  = r.filter(x=>x.grade==="B+").length;
+  document.getElementById("statTotal").textContent = data.total_scanned || "—";
+  document.getElementById("statDate").textContent  = data.date || "—";
+  document.getElementById("lastRunInfo").textContent = data.timestamp
+    ? "Last scan: " + new Date(data.timestamp).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})
+    : "—";
+
+  const mb = document.getElementById("marketBadge");
+  if (data.market_ok === false) {
+    mb.className = "market-badge market-bear"; mb.textContent = "Nifty ⚠️ Caution";
+  } else {
+    mb.className = "market-badge market-bull"; mb.textContent = "Nifty ✅ Bull";
+  }
+}
+
+// ── Start scan ──
+async function startScan() {
+  const btn      = document.getElementById("btnScan");
+  const minScore = document.getElementById("minScore").value;
+  btn.disabled   = true;
+  btn.textContent = "⏳ Scanning...";
+  document.getElementById("progressWrap").classList.add("show");
+
+  try {
+    await fetch("/api/run", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ min_score: parseInt(minScore) })
+    });
+    toast("🚀 Scan started! This takes 3–8 minutes depending on symbol count.");
+    pollProgress();
+  } catch(e) {
+    toast("❌ Could not connect to backend. Is swing_scanner_app.py running?", 5000);
+    btn.disabled = false; btn.textContent = "▶ Run Scan Now";
+    document.getElementById("progressWrap").classList.remove("show");
+  }
+}
+
+function pollProgress() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const res  = await fetch("/api/status");
+      const data = await res.json();
+
+      const pct = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+      document.getElementById("progressFill").style.width  = pct + "%";
+      document.getElementById("progressPct").textContent   = pct + "%";
+      document.getElementById("progressLabel").textContent =
+        data.running ? `Scanning… ${data.progress}/${data.total} stocks` : "Scan complete ✅";
+
+      if (!data.running) {
+        clearInterval(pollTimer);
+        document.getElementById("btnScan").disabled    = false;
+        document.getElementById("btnScan").textContent = "▶ Run Scan Now";
+        if (data.error) {
+          toast("❌ Error: " + data.error, 6000);
+        } else {
+          toast("✅ Scan complete! Results updated.");
+          await loadResults();
+          setTimeout(() => document.getElementById("progressWrap").classList.remove("show"), 2000);
+        }
+      }
+    } catch(e) { /* backend busy */ }
+  }, 3000);
+}
+
+// ── Export Excel ──
+async function exportExcel() {
+  try {
+    const res  = await fetch("/api/history");
+    const hist = await res.json();
+    if (!hist.length) { toast("No results to export"); return; }
+    const latest = hist[0].file.replace(".json",".xlsx");
+    window.open("/api/download/"+latest,"_blank");
+  } catch(e) { toast("❌ Export failed"); }
+}
+
+// ── History ──
+async function loadHistory() {
+  try {
+    const res  = await fetch("/api/history");
+    const hist = await res.json();
+    const el   = document.getElementById("historyList");
+    if (!hist.length) {
+      el.innerHTML = `<div class="empty"><div class="icon">📅</div><p>No history yet</p></div>`;
+      return;
+    }
+    el.innerHTML = hist.map(h => `
+      <div class="history-item" onclick="loadHistoryItem('${h.file}')">
+        <div class="history-date">📅 ${h.date||h.file.slice(5,15)}</div>
+        <div class="history-stats">
+          <span><strong>${h.candidates}</strong> candidates</span>
+          <span><strong>${h.total}</strong> scanned</span>
+          <span>${h.market_ok!==false?'✅ Bull':'⚠️ Caution'}</span>
+          <span style="font-size:.75rem">${new Date(h.timestamp).toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata"})}</span>
+        </div>
+        <div style="font-size:.75rem;color:var(--accent)">⬇ Load</div>
+      </div>`).join("");
+  } catch(e) {}
+}
+
+async function loadHistoryItem(file) {
+  try {
+    const res  = await fetch("/api/history/"+file);
+    const data = await res.json();
+    allResults = data.results || [];
+    updateStats(data);
+    applyFilters();
+    switchTab("results");
+    toast("📅 Loaded scan from " + (data.date||file));
+  } catch(e) { toast("Failed to load"); }
+}
+
+// ── Detail Modal ──
+function showDetail(idx) {
+  const rows = window._filteredRows || allResults;
+  const r    = rows[idx];
+  if (!r) return;
+
+  document.getElementById("modalTitle").textContent = r.stock;
+  document.getElementById("modalSub").innerHTML =
+    `₹${r.price} &nbsp;|&nbsp; ${gradeBadge(r.grade)} &nbsp;|&nbsp; ${r.score}/10 checks passed`;
+
+  // Check grid
+  const checkLabels = {
+    "Bull Trend":"📈","Higher Highs":"🏔️","Pullback Entry":"🎯",
+    "Volume Pattern":"📊","RSI Sweet Spot":"⚡","ATR Ok":"🌊",
+    "Not At Resistance":"🚧","R:R ≥ 1:3":"💰","EMA200 Buffer":"🛡️","Green Candle":"🕯️"
+  };
+  const checks = r.checks || {};
+  document.getElementById("checkGrid").innerHTML = Object.entries(checkLabels).map(([k,icon]) => {
+    const pass = checks[k];
+    return `<div class="check-item" style="border:1px solid ${pass?'rgba(0,210,160,.25)':'rgba(255,77,109,.2)'}">
+      <span class="icon">${pass?'✅':'❌'}</span>
+      <span style="color:${pass?'var(--text)':'var(--muted)'}">${icon} ${k}</span>
+    </div>`;
+  }).join("");
+
+  // Trade plan
+  const riskAmt = r.price - r.stop;
+  const reward  = r.target - r.price;
+  document.getElementById("tradePlan").innerHTML = `
+    <div class="tp-item"><label>Entry</label><div class="val">₹${r.price.toLocaleString("en-IN")}</div></div>
+    <div class="tp-item"><label>Stop Loss</label><div class="val c-red">₹${r.stop.toLocaleString("en-IN")}</div></div>
+    <div class="tp-item"><label>Target</label><div class="val c-green">₹${r.target.toLocaleString("en-IN")}</div></div>
+    <div class="tp-item"><label>Risk ₹</label><div class="val">₹${riskAmt.toFixed(2)}</div></div>
+    <div class="tp-item"><label>Reward ₹</label><div class="val c-green">₹${reward.toFixed(2)}</div></div>
+    <div class="tp-item"><label>R:R</label><div class="val c-accent">${r.rr}</div></div>
+    <div class="tp-item"><label>RSI</label><div class="val">${r.rsi}</div></div>
+    <div class="tp-item"><label>ATR %</label><div class="val">${r.atr_pct}%</div></div>
+    <div class="tp-item"><label>Rel Volume</label><div class="val">${r.rel_vol}×</div></div>
+  `;
+
+  document.getElementById("modalOverlay").classList.add("show");
+}
+
+function closeModal(e) { if (e.target === document.getElementById("modalOverlay")) hideModal(); }
+function hideModal() { document.getElementById("modalOverlay").classList.remove("show"); }
+document.addEventListener("keydown", e => { if (e.key==="Escape") hideModal(); });
+
+// ── Init ──
+window.addEventListener("DOMContentLoaded", async () => {
+  await loadResults();
+  // Check if a scan is already running (page reload mid-scan)
+  try {
+    const res  = await fetch("/api/status");
+    const data = await res.json();
+    if (data.running) {
+      document.getElementById("btnScan").disabled = true;
+      document.getElementById("btnScan").textContent = "⏳ Scanning...";
+      document.getElementById("progressWrap").classList.add("show");
+      pollProgress();
+    }
+  } catch(e) {}
+});
+</script>
+</body>
+</html>
